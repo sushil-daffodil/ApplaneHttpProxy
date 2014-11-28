@@ -10,6 +10,7 @@ var Config = require("./Config.js");
 var MAPPINGS = undefined;
 var MONGO_DB = undefined;
 var URL_MAPPING_COLLECTION = undefined;
+var URL_MAPPING_LOGS_COLLECTION = undefined;
 
 function connectMongo(callback) {
     if (MONGO_DB) {
@@ -37,14 +38,14 @@ function connectMongo(callback) {
 function loadUrls(callback) {
     connectMongo(function (err, db) {
         if (err) {
-            console.error("Error in db get.." + err)
+            callback(err);
         } else {
             if (!URL_MAPPING_COLLECTION) {
-                URL_MAPPING_COLLECTION = db.collection("pl.httpproxyurlmappings");
+                URL_MAPPING_COLLECTION = db.collection(Config.PROXYTABLE);
             }
             URL_MAPPING_COLLECTION.find({}, {}).toArray(function (err, result) {
                 if (err) {
-                    console.error("Error in db get.." + err);
+                    callback(err);
                     return;
                 }
                 MAPPINGS = {};
@@ -60,48 +61,84 @@ function loadUrls(callback) {
     })
 }
 
-function runProxyServer(req, res, hostname) {
-    if (!MAPPINGS[hostname]) {
-        hostname = "default";
-    }
-    var target = MAPPINGS[hostname];
-    target = "http://" + target;
-    proxy.web(req, res, { target: target });
+function maintainErrorLogs(error, callback) {
+    console.log(error);
+    callback();
+//    connectMongo(function (err, db) {
+//        if (err) {
+//            callback(err);
+//        } else {
+//            if (!URL_MAPPING_LOGS_COLLECTION) {
+//                URL_MAPPING_LOGS_COLLECTION = db.collection(Config.LOGTABLE);
+//            }
+//            URL_MAPPING_LOGS_COLLECTION.insert({"errorTime": new Date(), error: error.stack || error.message || error}, function (err, result) {
+//                if (err) {
+//                    callback(err);
+//                    return;
+//                }
+//                callback();
+//            })
+//        }
+//    })
 }
 
-function getProxyServer(req, res, hostname) {
-    console.log("MAPPING in getProxyServer : " + JSON.stringify(MAPPINGS));
+function runProxyServer(req, res) {
+    var hostname = req.headers.host;
+    var target = MAPPINGS[hostname] || MAPPINGS["default"];
+    if (!target) {
+        maintainErrorLogs("Target Url not found.", function (error, result) {
+            if (error) {
+                console.error("Error in ProxyServer : " + error);
+            }
+            res.writeHead(500, {
+                'Content-Type': 'text/plain'
+            });
+            res.end('Something went wrong during redirection. We are reporting an error message.');
+        })
+    }else{
+        proxy.web(req, res, { target: target });
+    }
+}
+
+function getProxyServer(req, res) {
     if (MAPPINGS) {
-        console.log("available... :) ");
-        runProxyServer(req, res, hostname);
+        runProxyServer(req, res);
     } else {
-        console.log("going to load ... :( ");
         loadUrls(function (err, result) {
             if (err) {
-                console.log("Error in getProxyServer..." + err);
-                return;
+                maintainErrorLogs(err, function (error, result) {
+                    if (error) {
+                        console.error("Error in ProxyServer : " + error);
+                    }
+                    res.writeHead(500, {
+                        'Content-Type': 'text/plain'
+                    });
+                    res.end('Something went wrong during redirection. We are reporting an error message.');
+                });
+            } else {
+                runProxyServer(req, res);
             }
-            runProxyServer(req, res, hostname);
         });
     }
 }
 
-exports.runProxy = function (req, res) { 
-    console.log("Child called...");
-    var hostname = req.headers.host;
+exports.runProxy = function (req, res) {
     var pathname = url.parse(req.url).pathname;
-    console.log("hostname : " + hostname);
-    console.log("pathname : " + pathname);
-    if (pathname == "/httpproxyclearcache") {
+    if (pathname === "/httpproxyclearcache") {
+        res.end("ProxyServer Cache Cleared. Previous Cache Value : ");
         MAPPINGS = undefined;
-        res.end("Http Proxy Cache Cleared.");
         return;
     }
     proxy.on('error', function (err, req, res) {
-        res.writeHead(500, {
-            'Content-Type': 'text/plain'
+        maintainErrorLogs(err, function (error, result) {
+            if (error) {
+                console.error("Error in ProxyServer : " + error);
+            }
+            res.writeHead(500, {
+                'Content-Type': 'text/plain'
+            });
+            res.end('Something went wrong during redirection. We are reporting an error message.');
         });
-        res.end('Something went wrong during redirection. We are reporting an error message.');
     });
-    getProxyServer(req, res, hostname);
+    getProxyServer(req, res);
 };

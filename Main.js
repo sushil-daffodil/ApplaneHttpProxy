@@ -5,11 +5,10 @@
 var http = require('http');
 var Config = require("./Config.js");
 
-console.log("server created");
 http.createServer(
     function (req, res) {
         require("./Child.js").runProxy(req, res);
     }).listen(Config.PORT, function () {
-        console.log("proxy server running on default port "+Config.PORT);
+        console.log("proxy server running on port (default : 80) :"+Config.PORT);
     });
 

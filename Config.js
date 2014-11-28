@@ -8,7 +8,8 @@ exports.ADMIN_DB = "pladmin";
 exports.MONGOADMIN_DB = "admin";
 exports.MONGOADMIN_USER = "daffodilsw";
 exports.MONGOADMIN_PASS = "daffodil-applane";
-
+exports.PROXYTABLE = "pl.httpproxyurlmappings";
+exports.LOGTABLE = "pl.httpproxymappinglogs";
 
 
 
