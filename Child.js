@@ -2,7 +2,7 @@
  * Created by ashu on 21/11/14.
  */
 
-var httpProxy = require('http-proxy1.6');
+var httpProxy = require('http-proxy');
 var url = require('url');
 var proxy = httpProxy.createProxyServer({});
 var MongoClient = require("mongodb").MongoClient;
@@ -70,12 +70,12 @@ function runProxyServer(req, res, hostname) {
 }
 
 function getProxyServer(req, res, hostname) {
-//    console.log("MAPPING in getProxyServer : " + JSON.stringify(MAPPINGS));
+    console.log("MAPPING in getProxyServer : " + JSON.stringify(MAPPINGS));
     if (MAPPINGS) {
-//        console.log("available... :) ");
+        console.log("available... :) ");
         runProxyServer(req, res, hostname);
     } else {
-//        console.log("going to load ... :( ");
+        console.log("going to load ... :( ");
         loadUrls(function (err, result) {
             if (err) {
                 console.log("Error in getProxyServer..." + err);
@@ -86,11 +86,12 @@ function getProxyServer(req, res, hostname) {
     }
 }
 
-exports.runProxy = function (req, res) {
+exports.runProxy = function (req, res) { 
+    console.log("Child called...");
     var hostname = req.headers.host;
     var pathname = url.parse(req.url).pathname;
-//    console.log("hostname : " + hostname);
-//    console.log("pathname : " + pathname);
+    console.log("hostname : " + hostname);
+    console.log("pathname : " + pathname);
     if (pathname == "/httpproxyclearcache") {
         MAPPINGS = undefined;
         res.end("Http Proxy Cache Cleared.");
