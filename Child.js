@@ -89,7 +89,7 @@ function runProxyServer(req, res) {
     var hostname = req.headers.host;
     var target = MAPPINGS[hostname] || MAPPINGS["default"];
     if (!target) {
-        maintainErrorLogs(new Error("Target Url not found."), function (error) {
+        maintainErrorLogs(new Error("Target Url not found for host "+hostname), function (error) {
             if (error) {
                 console.error("Error in ProxyServer : " + error);
             }
