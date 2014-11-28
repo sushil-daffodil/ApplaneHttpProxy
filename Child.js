@@ -8,15 +8,14 @@ var proxy = httpProxy.createProxyServer({});
 var MongoClient = require("mongodb").MongoClient;
 var Config = require("./Config.js");
 var MAPPINGS = undefined;
-var MONGO_DB = undefined;
-var URL_MAPPING_COLLECTION = undefined;
-var URL_MAPPING_LOGS_COLLECTION = undefined;
+var DBS = {};
+var COLLECTIONS = {};
 
-function connectMongo(callback) {
-    if (MONGO_DB) {
-        callback(null, MongoClient)
+function connectMongo(dbName, callback) {
+    if (DBS[dbName]) {
+        callback(null, DBS[dbName]);
     } else {
-        MongoClient.connect(Config.MONGO_URL + "/" + Config.ADMIN_DB, function (err, db) {
+        MongoClient.connect(Config.MONGO_URL + "/" + dbName, function (err, db) {
             if (err) {
                 callback(err);
                 return;
@@ -27,23 +26,32 @@ function connectMongo(callback) {
                 } else if (!res) {
                     callback(new Error("Auth fails"));
                 } else {
-                    MONGO_DB = db;
-                    callback(null, MONGO_DB);
+                    DBS[dbName] = db;
+                    callback(null, DBS[dbName]);
                 }
             })
         })
     }
 }
 
-function loadUrls(callback) {
-    connectMongo(function (err, db) {
+function getCollection(collectionName, dbName, callback) {
+    connectMongo(dbName, function (err, db) {
         if (err) {
             callback(err);
         } else {
-            if (!URL_MAPPING_COLLECTION) {
-                URL_MAPPING_COLLECTION = db.collection(Config.PROXYTABLE);
-            }
-            URL_MAPPING_COLLECTION.find({}, {}).toArray(function (err, result) {
+            COLLECTIONS[dbName] = COLLECTIONS[dbName] || {};
+            COLLECTIONS[dbName][collectionName] = COLLECTIONS[dbName][collectionName] || db.collection(collectionName);
+            callback(null, COLLECTIONS[dbName][collectionName]);
+        }
+    })
+}
+
+function loadUrls(callback) {
+    getCollection(Config.PROXYTABLE, Config.ADMIN_DB, function (err, proxyCollection) {
+        if (err) {
+            callback(err);
+        } else {
+            proxyCollection.find({}, {}).toArray(function (err, result) {
                 if (err) {
                     callback(err);
                     return;
@@ -62,31 +70,26 @@ function loadUrls(callback) {
 }
 
 function maintainErrorLogs(error, callback) {
-    console.log(error);
-    callback();
-//    connectMongo(function (err, db) {
-//        if (err) {
-//            callback(err);
-//        } else {
-//            if (!URL_MAPPING_LOGS_COLLECTION) {
-//                URL_MAPPING_LOGS_COLLECTION = db.collection(Config.LOGTABLE);
-//            }
-//            URL_MAPPING_LOGS_COLLECTION.insert({"errorTime": new Date(), error: error.stack || error.message || error}, function (err, result) {
-//                if (err) {
-//                    callback(err);
-//                    return;
-//                }
-//                callback();
-//            })
-//        }
-//    })
+    getCollection(Config.LOGTABLE, Config.LOG_DB, function (err, logCollection) {
+        if (err) {
+            callback(error);
+        } else {
+            logCollection.insert({"errorTime": new Date(), error: error.stack || error.message || error}, function (err) {
+                if (err) {
+                    callback(error);
+                    return;
+                }
+                callback();
+            })
+        }
+    })
 }
 
 function runProxyServer(req, res) {
     var hostname = req.headers.host;
     var target = MAPPINGS[hostname] || MAPPINGS["default"];
     if (!target) {
-        maintainErrorLogs("Target Url not found.", function (error, result) {
+        maintainErrorLogs(new Error("Target Url not found."), function (error) {
             if (error) {
                 console.error("Error in ProxyServer : " + error);
             }
@@ -95,7 +98,7 @@ function runProxyServer(req, res) {
             });
             res.end('Something went wrong during redirection. We are reporting an error message.');
         })
-    }else{
+    } else {
         proxy.web(req, res, { target: target });
     }
 }
@@ -104,9 +107,9 @@ function getProxyServer(req, res) {
     if (MAPPINGS) {
         runProxyServer(req, res);
     } else {
-        loadUrls(function (err, result) {
+        loadUrls(function (err) {
             if (err) {
-                maintainErrorLogs(err, function (error, result) {
+                maintainErrorLogs(err, function (error) {
                     if (error) {
                         console.error("Error in ProxyServer : " + error);
                     }
@@ -130,7 +133,7 @@ exports.runProxy = function (req, res) {
         return;
     }
     proxy.on('error', function (err, req, res) {
-        maintainErrorLogs(err, function (error, result) {
+        maintainErrorLogs(err, function (error) {
             if (error) {
                 console.error("Error in ProxyServer : " + error);
             }
