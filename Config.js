@@ -2,7 +2,7 @@
  * Created by ashu on 22/11/14.
  */
 
-exports.PORT = 9999;
+exports.PORT = 80;
 exports.MONGO_URL = "mongodb://127.0.0.1:27017";
 exports.ADMIN_DB = "pladmin";
 exports.MONGOADMIN_DB = "admin";
