@@ -11,6 +11,19 @@ var MAPPINGS = undefined;
 var DBS = {};
 var COLLECTIONS = {};
 
+proxy.on('error', function (err, req, res) {
+    maintainErrorLogs(err, function (error) {
+        if (error) {
+            console.error("DB Error in ProxyServer : " + error.stack || error.message || error);
+            console.error("Proxy Error in ProxyServer : " + err.stack || err.message || err);
+        }
+        res.writeHead(500, {
+            'Content-Type': 'text/plain'
+        });
+        res.end('Something went wrong during redirection. We are reporting an error message.');
+    });
+});
+
 function connectMongo(dbName, callback) {
     if (DBS[dbName]) {
         callback(null, DBS[dbName]);
@@ -91,7 +104,7 @@ function runProxyServer(req, res) {
     if (!target) {
         maintainErrorLogs(new Error("Target Url not found for host "+hostname), function (error) {
             if (error) {
-                console.error("Error in ProxyServer : " + error);
+                console.error("Error in ProxyServer : " + error.stack || error.message || error);
             }
             res.writeHead(500, {
                 'Content-Type': 'text/plain'
@@ -111,7 +124,7 @@ function getProxyServer(req, res) {
             if (err) {
                 maintainErrorLogs(err, function (error) {
                     if (error) {
-                        console.error("Error in ProxyServer : " + error);
+                        console.error("Error in ProxyServer : " + error.stack || error.message || error);
                     }
                     res.writeHead(500, {
                         'Content-Type': 'text/plain'
@@ -132,16 +145,5 @@ exports.runProxy = function (req, res) {
         MAPPINGS = undefined;
         return;
     }
-    proxy.on('error', function (err, req, res) {
-        maintainErrorLogs(err, function (error) {
-            if (error) {
-                console.error("Error in ProxyServer : " + error);
-            }
-            res.writeHead(500, {
-                'Content-Type': 'text/plain'
-            });
-            res.end('Something went wrong during redirection. We are reporting an error message.');
-        });
-    });
     getProxyServer(req, res);
 };
