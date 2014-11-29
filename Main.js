@@ -5,6 +5,10 @@
 var http = require('http');
 var Config = require("./Config.js");
 
+process.on('uncaughtException', function (err) {
+    require("./Child.js").handleuncaughtException(err);
+});
+
 http.createServer(
     function (req, res) {
         require("./Child.js").runProxy(req, res);

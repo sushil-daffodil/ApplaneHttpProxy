@@ -12,16 +12,7 @@ var DBS = {};
 var COLLECTIONS = {};
 
 proxy.on('error', function (err, req, res) {
-    maintainErrorLogs(err, function (error) {
-        if (error) {
-            console.error("DB Error in ProxyServer : " + error.stack || error.message || error);
-            console.error("Proxy Error in ProxyServer : " + err.stack || err.message || err);
-        }
-        res.writeHead(500, {
-            'Content-Type': 'text/plain'
-        });
-        res.end('Something went wrong during redirection. We are reporting an error message.');
-    });
+    maintainErrorLogs(err, req, res);
 });
 
 function connectMongo(dbName, callback) {
@@ -82,17 +73,39 @@ function loadUrls(callback) {
     })
 }
 
-function maintainErrorLogs(error, callback) {
+function printError(mainError, dbError, reqInfo,req, resp) {
+    if(reqInfo && req){
+        console.error(reqInfo);
+    }
+    if (mainError) {
+        console.error("Error in ProxyServer : " + mainError.stack || mainError.message || mainError);
+    }
+    if (dbError) {
+        console.error("Error in ProxyServer (DB): " + dbError.stack || dbError.message || dbError);
+    }
+    if(resp){
+        resp.writeHead(500, {
+            'Content-Type': 'text/plain'
+        });
+        resp.end('Something went wrong during redirection. We are reporting an error message.');
+    }
+}
+
+exports.handleuncaughtException = function (err) {
+    maintainErrorLogs(err);
+};
+
+function maintainErrorLogs(error, req, resp) {
+    var reqInfo = "";
+    if(req){
+        reqInfo = "req >> "+req.url+">>>host>>>"+req.headers.host;
+    }
     getCollection(Config.LOGTABLE, Config.LOG_DB, function (err, logCollection) {
         if (err) {
-            callback(error);
+            printError(error, err, reqInfo,req, resp);
         } else {
-            logCollection.insert({"errorTime": new Date(), error: error.stack || error.message || error}, function (err) {
-                if (err) {
-                    callback(error);
-                    return;
-                }
-                callback();
+            logCollection.insert({"errorTime": new Date(),reqInfo:reqInfo, error: error.stack || error.message || error}, function (err) {
+                printError(error, err, reqInfo,req, resp);
             })
         }
     })
@@ -102,15 +115,7 @@ function runProxyServer(req, res) {
     var hostname = req.headers.host;
     var target = MAPPINGS[hostname] || MAPPINGS["default"];
     if (!target) {
-        maintainErrorLogs(new Error("Target Url not found for host "+hostname), function (error) {
-            if (error) {
-                console.error("Error in ProxyServer : " + error.stack || error.message || error);
-            }
-            res.writeHead(500, {
-                'Content-Type': 'text/plain'
-            });
-            res.end('Something went wrong during redirection. We are reporting an error message.');
-        })
+        maintainErrorLogs(new Error("Target Url not found for host " + hostname), req, res)
     } else {
         proxy.web(req, res, { target: target });
     }
@@ -122,15 +127,7 @@ function getProxyServer(req, res) {
     } else {
         loadUrls(function (err) {
             if (err) {
-                maintainErrorLogs(err, function (error) {
-                    if (error) {
-                        console.error("Error in ProxyServer : " + error.stack || error.message || error);
-                    }
-                    res.writeHead(500, {
-                        'Content-Type': 'text/plain'
-                    });
-                    res.end('Something went wrong during redirection. We are reporting an error message.');
-                });
+                maintainErrorLogs(err, req, res);
             } else {
                 runProxyServer(req, res);
             }
@@ -139,8 +136,8 @@ function getProxyServer(req, res) {
 }
 
 exports.runProxy = function (req, res) {
-    var pathname = url.parse(req.url).pathname;
-    if (pathname === "/httpproxyclearcache") {
+//    var pathname = url.parse(req.url).pathname;
+    if (req.url === "/httpproxyclearcache") {
         res.end("ProxyServer Cache Cleared. Previous Cache Value : ");
         MAPPINGS = undefined;
         return;
