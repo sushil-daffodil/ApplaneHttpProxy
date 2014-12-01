@@ -96,9 +96,25 @@ exports.handleuncaughtException = function (err) {
 };
 
 function maintainErrorLogs(error, req, resp) {
-    var reqInfo = "";
+    var reqInfo = {};
     if(req){
-        reqInfo = "req >> "+req.url+">>>host>>>"+req.headers.host;
+        reqInfo.host=req.headers.host;
+        reqInfo.url = req.url;
+        if(req.method=='POST') {
+            var body='';
+            req.on('data', function (data) {
+                body +=data;
+            });
+            req.on('end',function(){
+                var qs = require('querystring');
+                var data = (qs.parse(body));
+                reqInfo.postparams=data;
+            });
+        }
+        else if(req.method=='GET') {
+            var url_parts = url.parse(req.url,true);
+            reqInfo.getparams=url_parts.query;
+        }
     }
     getCollection(Config.LOGTABLE, Config.LOG_DB, function (err, logCollection) {
         if (err) {
