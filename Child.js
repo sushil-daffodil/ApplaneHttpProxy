@@ -154,7 +154,7 @@ function getProxyServer(req, res) {
 exports.runProxy = function (req, res) {
 //    var pathname = url.parse(req.url).pathname;
     if (req.url === "/httpproxyclearcache") {
-        res.end("ProxyServer Cache Cleared. Previous Cache Value : ");
+        res.end("ProxyServer Cache Cleared. Previous Cache Value : "+JSON.stringify(MAPPINGS));
         MAPPINGS = undefined;
         return;
     }
