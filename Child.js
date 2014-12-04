@@ -64,7 +64,7 @@ function loadUrls(callback) {
                 for (var i = 0; i < result.length; i++) {
                     var map = result[i];
                     if (map.source && map.target) {
-                        MAPPINGS[map.source] = map.target;
+                        MAPPINGS[map.source] = map;
                     }
                 }
                 callback();
@@ -73,8 +73,26 @@ function loadUrls(callback) {
     })
 }
 
-function printError(mainError, dbError, reqInfo,req, resp) {
-    if(reqInfo && req){
+function getFieldValue(hostname, field) {
+    if (MAPPINGS) {
+        var value = MAPPINGS[hostname] ? MAPPINGS[hostname][field] : undefined;
+        if (!value) {
+            value = MAPPINGS["default"] ? MAPPINGS["default"][field] : undefined;
+        }
+        return value;
+    } else {
+        loadUrls(function (err) {
+            if (err) {
+                maintainErrorLogs(err);
+            } else {
+                getFieldValue(field, hostname);
+            }
+        })
+    }
+}
+
+function printError(mainError, dbError, reqInfo, req, resp) {
+    if (reqInfo && req) {
         console.error(reqInfo);
     }
     if (mainError) {
@@ -83,11 +101,15 @@ function printError(mainError, dbError, reqInfo,req, resp) {
     if (dbError) {
         console.error("Error in ProxyServer (DB): " + dbError.stack || dbError.message || dbError);
     }
-    if(resp){
-        resp.writeHead(500, {
-            'Content-Type': 'text/plain'
-        });
-        resp.end('Something went wrong during redirection. We are reporting an error message.');
+    if (resp) {
+        var hostname = req.headers.host;
+        var errorHtml = getFieldValue(hostname, "errorHTML");
+        if(!errorHtml){
+            errorHtml = "<body>Something went wrong during redirection. We are reporting an error message.</body>";
+        }
+        resp.writeHead(500, {"Content-Type": "text/html"});
+        resp.write(errorHtml);
+        resp.end();
     }
 }
 
@@ -97,31 +119,31 @@ exports.handleuncaughtException = function (err) {
 
 function maintainErrorLogs(error, req, resp) {
     var reqInfo = {};
-    if(req){
-        reqInfo.host=req.headers.host;
+    if (req) {
+        reqInfo.host = req.headers.host;
         reqInfo.url = req.url;
-        if(req.method=='POST') {
-            var body='';
+        if (req.method == 'POST') {
+            var body = '';
             req.on('data', function (data) {
-                body +=data;
+                body += data;
             });
-            req.on('end',function(){
+            req.on('end', function () {
                 var qs = require('querystring');
                 var data = (qs.parse(body));
-                reqInfo.postparams=data;
+                reqInfo.postparams = data;
             });
         }
-        else if(req.method=='GET') {
-            var url_parts = url.parse(req.url,true);
-            reqInfo.getparams=url_parts.query;
+        else if (req.method == 'GET') {
+            var url_parts = url.parse(req.url, true);
+            reqInfo.getparams = url_parts.query;
         }
     }
     getCollection(Config.LOGTABLE, Config.LOG_DB, function (err, logCollection) {
         if (err) {
-            printError(error, err, reqInfo,req, resp);
+            printError(error, err, reqInfo, req, resp);
         } else {
-            logCollection.insert({"errorTime": new Date(),reqInfo:reqInfo, error: error.stack || error.message || error}, function (err) {
-                printError(error, err, reqInfo,req, resp);
+            logCollection.insert({"errorTime": new Date(), reqInfo: reqInfo, error: error.stack || error.message || error}, function (err) {
+                printError(error, err, reqInfo, req, resp);
             })
         }
     })
@@ -129,7 +151,7 @@ function maintainErrorLogs(error, req, resp) {
 
 function runProxyServer(req, res) {
     var hostname = req.headers.host;
-    var target = MAPPINGS[hostname] || MAPPINGS["default"];
+    var target = getFieldValue(hostname, "target");
     if (!target) {
         maintainErrorLogs(new Error("Target Url not found for host " + hostname), req, res)
     } else {
@@ -154,7 +176,7 @@ function getProxyServer(req, res) {
 exports.runProxy = function (req, res) {
 //    var pathname = url.parse(req.url).pathname;
     if (req.url === "/httpproxyclearcache") {
-        res.end("ProxyServer Cache Cleared. Previous Cache Value : "+JSON.stringify(MAPPINGS));
+        res.end("ProxyServer Cache Cleared. \nMAPPINGS cleared from Cache : " + JSON.stringify(MAPPINGS));
         MAPPINGS = undefined;
         return;
     }
