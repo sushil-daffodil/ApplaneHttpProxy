@@ -174,10 +174,20 @@ function getProxyServer(req, res) {
 }
 
 exports.runProxy = function (req, res) {
-//    var pathname = url.parse(req.url).pathname;
-    if (req.url === "/httpproxyclearcache") {
+    if (req.url === "/httpproxyclearcachedb") {
         res.end("ProxyServer Cache Cleared. \nMAPPINGS cleared from Cache : " + JSON.stringify(MAPPINGS));
         MAPPINGS = undefined;
+        return;
+    }
+    if (req.url === "/httpproxyclearcachechild") {
+        var cache = require.cache;
+        for (var key in cache) {
+            if (key.indexOf("Child.js") !== -1) {
+                delete cache[key];
+
+            }
+        }
+        res.end("Cache cleared : "+key);
         return;
     }
     getProxyServer(req, res);
