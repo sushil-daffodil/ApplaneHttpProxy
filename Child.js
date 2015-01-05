@@ -175,11 +175,13 @@ function getProxyServer(req, res) {
 
 exports.runProxy = function (req, res) {
     if (req.url === "/httpproxyclearcachedb") {
+        // if mapping values are changed
         res.end("ProxyServer Cache Cleared. \nMAPPINGS cleared from Cache : " + JSON.stringify(MAPPINGS));
         MAPPINGS = undefined;
         return;
     }
     if (req.url === "/httpproxyclearcachechild") {
+        // if code in child.js is changed
         var cache = require.cache;
         for (var key in cache) {
             if (key.indexOf("Child.js") !== -1) {
