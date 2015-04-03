@@ -174,11 +174,6 @@ function getProxyServer(req, res) {
 }
 
 exports.runProxy = function (req, res) {
-    if (req.url === "/rest/runningStatus") {
-        res.writeHead(200, "Server Running");
-        res.end();
-        return;
-    }
     if (req.url === "/httpproxyclearcachedb") {
         // if mapping values are changed
         res.end("ProxyServer Cache Cleared. \nMAPPINGS cleared from Cache : " + JSON.stringify(MAPPINGS));
