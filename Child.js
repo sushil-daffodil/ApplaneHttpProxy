@@ -104,7 +104,7 @@ function printError(mainError, dbError, reqInfo, req, resp) {
     if (resp) {
         var hostname = req.headers.host;
         var errorHtml = getFieldValue(hostname, "errorHTML");
-        if(!errorHtml){
+        if (!errorHtml) {
             errorHtml = "<body>Something went wrong during redirection. We are reporting an error message.</body>";
         }
         resp.writeHead(500, {"Content-Type": "text/html"});
@@ -174,6 +174,11 @@ function getProxyServer(req, res) {
 }
 
 exports.runProxy = function (req, res) {
+    if (req.url === "/rest/runningStatus") {
+        res.writeHead(200, "Server Running");
+        res.end();
+        return;
+    }
     if (req.url === "/httpproxyclearcachedb") {
         // if mapping values are changed
         res.end("ProxyServer Cache Cleared. \nMAPPINGS cleared from Cache : " + JSON.stringify(MAPPINGS));
@@ -189,7 +194,7 @@ exports.runProxy = function (req, res) {
 
             }
         }
-        res.end("Cache cleared : "+key);
+        res.end("Cache cleared : " + key);
         return;
     }
     getProxyServer(req, res);
