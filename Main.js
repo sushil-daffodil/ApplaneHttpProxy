@@ -7,7 +7,7 @@ var Config = require("./Config.js");
 var Child = require("./Child.js");
 
 process.on('uncaughtException', function (err) {
-    Child.handleuncaughtException(err);
+    require("./Child.js").handleuncaughtException(err);
 });
 
 http.createServer(
