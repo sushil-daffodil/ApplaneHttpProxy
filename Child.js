@@ -10,6 +10,7 @@ var Config = require("./Config.js");
 var MAPPINGS = undefined;
 var DBS = {};
 var COLLECTIONS = {};
+var domainMap = {};
 
 proxy.on('error', function (err, req, res) {
     maintainErrorLogs(err, req, res);
@@ -104,7 +105,7 @@ function printError(mainError, dbError, reqInfo, req, resp) {
     if (resp) {
         var hostname = req.headers.host;
         var errorHtml = getFieldValue(hostname, "errorHTML");
-        if(!errorHtml){
+        if (!errorHtml) {
             errorHtml = "<body>Something went wrong during redirection. We are reporting an error message.</body>";
         }
         resp.writeHead(500, {"Content-Type": "text/html"});
@@ -180,17 +181,44 @@ exports.runProxy = function (req, res) {
         MAPPINGS = undefined;
         return;
     }
-    if (req.url === "/httpproxyclearcachechild") {
-        // if code in child.js is changed
-        var cache = require.cache;
-        for (var key in cache) {
-            if (key.indexOf("Child.js") !== -1) {
-                delete cache[key];
-
-            }
-        }
-        res.end("Cache cleared : "+key);
-        return;
-    }
+    updateDomainMap(req.headers.host);
     getProxyServer(req, res);
 };
+
+function updateDomainMap(hostname) {
+    if (typeof hostname !== "string") {
+        hostname = hostname.toString();
+    }
+    domainMap[hostname] = domainMap[hostname] || 0;
+    domainMap[hostname] += 1;
+}
+
+function updateDomainCalls() {
+    setTimeout(function () {
+        var mapCopy = JSON.parse(JSON.stringify(domainMap));
+        domainMap = {};
+        getCollection(Config.DOMAINTABLE, Config.LOG_DB, function (err, domainCollection) {
+            var domainNames = mapCopy ? Object.keys(mapCopy) : [];
+
+            function upsertValue(i) {
+                if (i < domainNames.length) {
+                    domainCollection.updateOne({domainName: domainNames[i]}, {$inc: {callCount: mapCopy[domainNames[i]]}}, {upsert: true}, function (err) {
+                        if (err) {
+                            console.error('error: ' + err);
+                        }
+                        else {
+                            upsertValue(i + 1);
+                        }
+                    })
+                } else {
+                    updateDomainCalls();
+                }
+            }
+
+            upsertValue(0);
+        });
+    }, 15000)
+}
+
+updateDomainCalls();
+
