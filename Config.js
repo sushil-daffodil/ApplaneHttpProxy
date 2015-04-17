@@ -11,7 +11,7 @@ exports.MONGOADMIN_USER = "daffodilsw";
 exports.MONGOADMIN_PASS = "daffodil-applane";
 exports.PROXYTABLE = "pl.httpproxyurlmappings";
 exports.LOGTABLE = "pl.httpproxymappinglogs";
-exports.DOMAINTABLE = "pl.domaincalls";
+exports.DOMAINTABLE = "pl.domaincallstats";
 
 
 
