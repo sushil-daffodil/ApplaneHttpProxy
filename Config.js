@@ -3,7 +3,7 @@
  */
 
 exports.PORT = 80;
-exports.MONGO_URL = "mongodb://127.0.0.1:27017";
+exports.MONGO_URL = "mongodb://172.31.49.47:27017";
 exports.ADMIN_DB = "pladmin";
 exports.LOG_DB = "pllogs";
 exports.MONGOADMIN_DB = "admin";

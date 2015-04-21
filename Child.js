@@ -226,5 +226,5 @@ function updateDomainCalls() {
     }, 15000)
 }
 
-//updateDomainCalls();
+updateDomainCalls();
 
