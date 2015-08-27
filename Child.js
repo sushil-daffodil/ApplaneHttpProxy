@@ -74,11 +74,21 @@ function loadUrls(callback) {
     })
 }
 
-function getFieldValue(hostname, field) {
+function getFieldValue(hostname, field, uri) {
     if (MAPPINGS) {
         var value = MAPPINGS[hostname] ? MAPPINGS[hostname][field] : undefined;
         if (!value) {
             value = MAPPINGS["default"] ? MAPPINGS["default"][field] : undefined;
+        }
+        var customUriDef = MAPPINGS[hostname] ? MAPPINGS[hostname]["customUri"] : undefined;
+        if (uri && (field === "target") && customUriDef && (customUriDef.length > 0)) {
+            for (var i = 0; i < customUriDef.length; i++) {
+                var map = customUriDef[i];
+                if (map.sourceUri && map.uriTarget && (uri.indexOf(map.sourceUri) === 0)) {
+                    value = map.uriTarget;
+                    break;
+                }
+            }
         }
         return value;
     } else {
@@ -152,7 +162,7 @@ function maintainErrorLogs(error, req, resp) {
 
 function runProxyServer(req, res) {
     var hostname = req.headers.host;
-    var target = getFieldValue(hostname, "target");
+    var target = getFieldValue(hostname, "target", req.url);
     if (!target) {
         maintainErrorLogs(new Error("Target Url not found for host " + hostname), req, res)
     } else {
