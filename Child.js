@@ -16,6 +16,10 @@ proxy.on('error', function (err, req, res) {
     maintainErrorLogs(err, req, res);
 });
 
+proxy.on('proxyReq', function(proxyReq, req, res, options) {
+    proxyReq.setHeader('remoteip', req.connection.remoteAddress);
+});
+
 function connectMongo(dbName, callback) {
     if (DBS[dbName]) {
         callback(null, DBS[dbName]);
@@ -170,6 +174,7 @@ function runProxyServer(req, res) {
     }
 }
 
+
 function getProxyServer(req, res) {
     if (MAPPINGS) {
         runProxyServer(req, res);
@@ -205,6 +210,7 @@ function updateDomainMap(hostname) {
     if (typeof hostname !== "string") {
         hostname = hostname.toString();
     }
+    console.log("updateDomainMap is called"+hostname);
     domainMap[hostname] = domainMap[hostname] || 0;
     domainMap[hostname] += 1;
 }
