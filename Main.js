@@ -22,9 +22,10 @@ var proxyServer = http.createServer(function (req, res) {
         res.end("Cache cleared : " + key);
         Child = require("./Child.js");
     } else {
-        Child.runProxy(req, res, proxyServer);
+        Child.runProxy(req, res);
     }
 }).listen(Config.PORT, function () {
     console.log("proxy server running on port (default : 80) :" + Config.PORT);
 });
 
+Child.runSocket(proxyServer);
