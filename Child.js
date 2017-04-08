@@ -4,7 +4,7 @@
 
 var httpProxy = require('http-proxy');
 var url = require('url');
-var proxy = void 0;
+var proxy = httpProxy.createProxyServer();
 var MongoClient = require("mongodb").MongoClient;
 var Config = require("./Config.js");
 var MAPPINGS = undefined;
@@ -12,15 +12,13 @@ var DBS = {};
 var COLLECTIONS = {};
 var domainMap = {};
 
-if (proxy) {
-    proxy.on('error', function (err, req, res) {
-        maintainErrorLogs(err, req, res);
-    });
+proxy.on('error', function (err, req, res) {
+    maintainErrorLogs(err, req, res);
+});
 
-    proxy.on('proxyReq', function (proxyReq, req, res, options) {
-        proxyReq.setHeader('remoteip', req.connection.remoteAddress);
-    });
-}
+proxy.on('proxyReq', function (proxyReq, req, res, options) {
+    proxyReq.setHeader('remoteip', req.connection.remoteAddress);
+});
 
 function connectMongo(dbName, callback) {
     if (DBS[dbName]) {
@@ -170,38 +168,47 @@ function maintainErrorLogs(error, req, resp) {
     })
 }
 
-function runProxyServer(req, res, proxyServer) {
+function runProxyServer(req, res, head, isWS) {
     var hostname = req.headers.host;
     var target = getFieldValue(hostname, "target", req.url);
     if (!target) {
-        maintainErrorLogs(new Error("Target Url not found for host " + hostname), req, res)
+        maintainErrorLogs(new Error("Target Url not found for host " + hostname), req, res);
     } else {
-        proxy = new httpProxy.createProxyServer({target: target});
-        proxy.web(req, res);
-        if (proxyServer) {
-            proxyServer.on("upgrade", function (req, socket, head) {
-                proxy.ws(req, socket, head);
-            })
+        if (isWS) {
+            proxy.ws(req, res, head, {
+                target: target
+            });
+        } else {
+            proxy.web(req, res, {
+                target: target
+            });
         }
+
     }
 }
 
 
-function getProxyServer(req, res, proxyServer) {
+function getProxyServer(req, res) {
     if (MAPPINGS) {
-        runProxyServer(req, res, proxyServer);
+        runProxyServer(req, res);
     } else {
         loadUrls(function (err) {
             if (err) {
                 maintainErrorLogs(err, req, res);
             } else {
-                runProxyServer(req, res, proxyServer);
+                runProxyServer(req, res);
             }
         });
     }
 }
 
-exports.runProxy = function (req, res, proxyServer) {
+exports.runSocket = function (proxyServer) {
+    proxyServer.on('upgrade', function (req, socket, head) {
+        runProxyServer(req, socket, head, true);
+    });
+}
+
+exports.runProxy = function (req, res) {
     if (req.url === "/rest/runningStatus") {
         res.writeHead(200);
         res.write("Server Running");
@@ -215,7 +222,7 @@ exports.runProxy = function (req, res, proxyServer) {
         return;
     }
     updateDomainMap(req.headers.host);
-    getProxyServer(req, res, proxyServer);
+    getProxyServer(req, res);
 };
 
 function updateDomainMap(hostname) {
