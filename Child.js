@@ -16,6 +16,7 @@ proxy.on('error', function (err, req, res) {
     maintainErrorLogs(err, req, res);
 });
 
+/*Set the user ip into headers so that server running behind the proxy can get the ip of user @sourbh */
 proxy.on('proxyReq', function (proxyReq, req, res, options) {
     proxyReq.setHeader('remoteip', req.connection.remoteAddress);
 });
