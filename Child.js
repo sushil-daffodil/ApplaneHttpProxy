@@ -30,6 +30,15 @@ function connectMongo(dbName, callback) {
                 callback(err);
                 return;
             }
+            /*topology destroyed issue - clear the cache connection to resolve @sourbh - 1-6-17*/
+            db.on("timeout", function (error, db) {
+                DBS = {};
+                COLLECTIONS = {};
+            })
+            db.on("close", function () {
+                DBS = {};
+                COLLECTIONS = {};
+            });
             db.authenticate(Config.MONGOADMIN_USER, Config.MONGOADMIN_PASS, {authdb: Config.MONGOADMIN_DB}, function (err, res) {
                 if (err) {
                     callback(err);
