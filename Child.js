@@ -198,15 +198,15 @@ function runProxyServer(req, res, head, isWS) {
 }
 
 
-function getProxyServer(req, res) {
+function getProxyServer(req, res, head, isWS) {
     if (MAPPINGS) {
-        runProxyServer(req, res);
+        runProxyServer(req, res, head, isWS);
     } else {
         loadUrls(function (err) {
             if (err) {
                 maintainErrorLogs(err, req, res);
             } else {
-                runProxyServer(req, res);
+                runProxyServer(req, res, head, isWS);
             }
         });
     }
@@ -214,7 +214,8 @@ function getProxyServer(req, res) {
 
 exports.runSocket = function (proxyServer) {
     proxyServer.on('upgrade', function (req, socket, head) {
-        runProxyServer(req, socket, head, true);
+        /*Use getProxyServer for runProxyServer on httpproxyclearcachedb need to populate Mapping from DB again - Sachin 06-06-17*/
+        getProxyServer(req, socket, head, true);
     });
 }
 
