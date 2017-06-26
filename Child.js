@@ -126,7 +126,7 @@ function printError(mainError, dbError, reqInfo, req, resp) {
     if (dbError) {
         console.error("Error in ProxyServer (DB): " + dbError.stack || dbError.message || dbError);
     }
-    if (resp) {
+    if (resp && resp.writeHead) {
         var hostname = req.headers.host;
         var errorHtml = getFieldValue(hostname, "errorHTML");
         if (!errorHtml) {
@@ -196,7 +196,6 @@ function runProxyServer(req, res, head, isWS) {
 
     }
 }
-
 
 function getProxyServer(req, res, head, isWS) {
     if (MAPPINGS) {
