@@ -7,10 +7,11 @@ var url = require('url');
 var proxy = httpProxy.createProxyServer();
 var MongoClient = require("mongodb").MongoClient;
 var Config = require("./Config.js");
-var MAPPINGS = undefined;
+var Mappings = require("./Mappings.js");
 var DBS = {};
 var COLLECTIONS = {};
 var domainMap = {};
+var mapping = new Mappings();
 
 proxy.on('error', function (err, req, res) {
     maintainErrorLogs(err, req, res);
@@ -75,13 +76,14 @@ function loadUrls(callback) {
                     callback(err);
                     return;
                 }
-                MAPPINGS = {};
+                var MAPPINGS = {};
                 for (var i = 0; i < result.length; i++) {
                     var map = result[i];
                     if (map.source && map.target) {
                         MAPPINGS[map.source] = map;
                     }
                 }
+                mapping.setMappings(MAPPINGS);
                 callback();
             })
         }
@@ -89,6 +91,7 @@ function loadUrls(callback) {
 }
 
 function getFieldValue(hostname, field, uri) {
+    var MAPPINGS = mapping.getMappings();
     if (MAPPINGS) {
         var value = MAPPINGS[hostname] ? MAPPINGS[hostname][field] : undefined;
         if (!value) {
@@ -200,6 +203,7 @@ function runProxyServer(req, res, head, isWS) {
 }
 
 function getProxyServer(req, res, head, isWS) {
+    var MAPPINGS = mapping.getMappings();
     if (MAPPINGS) {
         runProxyServer(req, res, head, isWS);
     } else {
@@ -229,8 +233,8 @@ exports.runProxy = function (req, res) {
     }
     if (req.url === "/httpproxyclearcachedb") {
         // if mapping values are changed
-        res.end("ProxyServer Cache Cleared. \nMAPPINGS cleared from Cache : " + JSON.stringify(MAPPINGS));
-        MAPPINGS = undefined;
+        res.end("ProxyServer Cache Cleared. \nMAPPINGS cleared from Cache : " + JSON.stringify(mapping.getMappings()));
+        mapping.clearMappings();
         return;
     }
     updateDomainMap(req.headers.host);
