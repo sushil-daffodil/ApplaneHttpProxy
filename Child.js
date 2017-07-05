@@ -188,8 +188,6 @@ function runProxyServer(req, res, head, isWS) {
         maintainErrorLogs(new Error("Target Url not found for host " + hostname), req, res);
     } else {
         if (isWS) {
-            console.log("TARGET for socket>>>>>>>", target);
-            console.log("HEAD>>>>>>>", head);
             proxy.ws(req, res, head, {
                 target: target
             });
